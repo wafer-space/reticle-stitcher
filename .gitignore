@@ -1,0 +1,5 @@
+*.gds
+*.gds.gz
+*.oas
+*.csv
+.~lock.*
