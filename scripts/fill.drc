@@ -1,0 +1,160 @@
+require 'etc'
+
+source($layout, $layout.top_cell)
+
+verbose
+
+$threads = $threads || Etc.nprocessors
+
+chip = input(0, 0) # boundary
+GUARD_RING_MK = input(167, 5)
+
+# Prepare a hierarchy below the top cell to hold the fill pattern later
+top_cell = source.cell_obj
+comp_fill_top = source.layout.create_cell("RETICLE_FILL")
+top_cell.insert(RBA::CellInstArray::new(comp_fill_top, RBA::Trans::new))
+
+GUARD_RING_MK_inner = GUARD_RING_MK.holes
+to_fill = chip - GUARD_RING_MK_inner - GUARD_RING_MK
+
+#COMP_Dummy   = input(22, 4)
+#Poly2_Dummy  = input(30, 4)
+#Metal1_Dummy = input(34, 4)
+#Metal2_Dummy = input(36, 4)
+#Metal3_Dummy = input(42, 4)
+#Metal4_Dummy = input(46, 4)
+#Metal5_Dummy = input(81, 4)
+
+# Switch to tiled mode
+
+tiles(500)
+tile_borders(0.0)
+threads($threads)
+
+# switch to the output cell for the fill
+output_cell(comp_fill_top.name)
+
+# DCF.7b
+margin = 6
+
+# ----------------
+
+pattern = fill_pattern("COMP_FILL")
+
+#pattern.shape(22, 4, box(0.0, 0.0, 5.0, 5.0))
+#pattern.dim(5.0, 5.0)
+#pattern.origin(2.5, 2.5)
+
+pattern.shape(22, 4, box(-2.5, -2.5, 2.5, 2.5))
+pattern.dim(5.0, 5.0)
+pattern.origin(-2.5, -2.5)
+
+pattern.margin(margin, margin)
+
+line_space = 3
+
+row_step = hstep(5 + line_space, 1.6)
+column_step = vstep(1.6, 5 + line_space)
+
+to_fill.fill(pattern, row_step, column_step, origin(0, 0))
+
+# ----------------
+
+pattern = fill_pattern("POLY2_FILL")
+
+#pattern.shape(30, 4, box(0.0, 0.0, 5.6, 5.6))
+#pattern.dim(5.6, 5.6)
+#pattern.origin(2.8, 2.8)
+
+pattern.shape(30, 4, box(-2.8, -2.8, 2.8, 2.8))
+pattern.dim(5.6, 5.6)
+pattern.origin(-2.8, -2.8)
+
+pattern.margin(margin, margin)
+
+line_space = 2.4
+
+row_step = hstep(5.6 + line_space, 1.6)
+column_step = vstep(1.6, 5.6 + line_space)
+
+to_fill.fill(pattern, row_step, column_step, origin(0, 0))
+
+# ----------------
+
+pattern = fill_pattern("METAL1_FILL")
+pattern.shape(34, 4, box(-1.0, -1.0, 1.0, 1.0))
+pattern.dim(2.0, 2.0)
+pattern.origin(-1.0, -1.0)
+pattern.margin(margin, margin)
+
+# DM.2a
+line_space = 1.2
+
+row_step = hstep(2.0 + line_space, 0.5)
+column_step = vstep(0.5, 2.0 + line_space)
+
+to_fill.fill(pattern, row_step, column_step, origin(0, 0))
+
+# ----------------
+
+pattern = fill_pattern("METAL2_FILL")
+pattern.shape(36, 4, box(-1.0, -1.0, 1.0, 1.0))
+pattern.dim(2.0, 2.0)
+pattern.origin(-1.0, -1.0)
+pattern.margin(margin, margin)
+
+# DM.2a
+line_space = 1.2
+
+row_step = hstep(2.0 + line_space, 0.5)
+column_step = vstep(0.5, 2.0 + line_space)
+
+to_fill.fill(pattern, row_step, column_step, origin(0.5, 0.5))
+
+# ----------------
+
+pattern = fill_pattern("METAL3_FILL")
+pattern.shape(42, 4, box(-1.0, -1.0, 1.0, 1.0))
+pattern.dim(2.0, 2.0)
+pattern.origin(-1.0, -1.0)
+pattern.margin(margin, margin)
+
+# DM.2a
+line_space = 1.2
+
+row_step = hstep(2.0 + line_space, 0.5)
+column_step = vstep(0.5, 2.0 + line_space)
+
+to_fill.fill(pattern, row_step, column_step, origin(1.0, 1.0))
+
+# ----------------
+
+pattern = fill_pattern("METAL4_FILL")
+pattern.shape(46, 4, box(-1.0, -1.0, 1.0, 1.0))
+pattern.dim(2.0, 2.0)
+pattern.origin(-1.0, -1.0)
+pattern.margin(margin, margin)
+
+# DM.2a
+line_space = 1.2
+
+row_step = hstep(2.0 + line_space, 0.5)
+column_step = vstep(0.5, 2.0 + line_space)
+
+to_fill.fill(pattern, row_step, column_step, origin(1.5, 1.5))
+
+# ----------------
+
+pattern = fill_pattern("METAL5_FILL")
+pattern.shape(81, 4, box(-1.0, -1.0, 1.0, 1.0))
+pattern.dim(2.0, 2.0)
+pattern.origin(-1.0, -1.0)
+pattern.margin(margin, margin)
+
+# DM.2c
+line_space = 2
+
+row_step = hstep(2.0 + line_space, 0.5)
+column_step = vstep(0.5, 2.0 + line_space)
+
+to_fill.fill(pattern, row_step, column_step, origin(2.0, 2.0))
