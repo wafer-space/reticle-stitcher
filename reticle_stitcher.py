@@ -57,7 +57,6 @@ COLORS = [
     "#4d7a99",
     "#7497a6",
     "#a3ccd9",
-    "#f0edd8",
     "#732866",
     "#a6216e",
     "#d94c87",
@@ -85,7 +84,7 @@ COLORS = [
 
 
 class Project:
-    REQUIRED_ENTRIES = ["CODE", "PROJECT", "SLOT", "TOP", "HASH_MD5", "LAYOUT"]
+    REQUIRED_ENTRIES = ["CODE", "PROJECT", "SLOT_SIZE", "TOP", "SHA256", "LAYOUT"]
 
     SLOT_TO_TILES = {
         "1x1": (2, 2),
@@ -114,9 +113,9 @@ class Project:
 
         self.code = entries["CODE"]
         self.project = entries["PROJECT"]
-        self.slot = entries["SLOT"]
+        self.slot = entries["SLOT_SIZE"]
         self.top = entries["TOP"]
-        self.hash_md5 = entries["HASH_MD5"]
+        self.hash_md5 = entries["SHA256"]
         self.layout = entries["LAYOUT"]
 
         # Make sure the slot size is valid
@@ -151,7 +150,7 @@ def read_manifest(base_path, manifest):
             projects[entry["CODE"]] = Project(entry)
 
             # Check the hash
-            md5 = hashlib.md5()
+            sha256 = hashlib.sha256()
 
             layout_path = os.path.join(base_path, entry["LAYOUT"])
             print(f"Checking hash for: {layout_path}")
@@ -161,11 +160,11 @@ def read_manifest(base_path, manifest):
                     data = f.read(BUF_SIZE)
                     if not data:
                         break
-                    md5.update(data)
+                    sha256.update(data)
 
-            print("Actual MD5: {0}".format(md5.hexdigest()))
-            print("Expected MD5: {0}".format(entry["HASH_MD5"]))
-            assert entry["HASH_MD5"] == md5.hexdigest()
+            print("Actual SHA256: {0}".format(sha256.hexdigest()))
+            print("Expected SHA256: {0}".format(entry["SHA256"]))
+            assert entry["SHA256"] == sha256.hexdigest()
 
     return projects
 
@@ -231,41 +230,37 @@ class SVG:
 
             file.write(
                 f"""    <rect
-       style="fill:{self.fill};stroke-width:0.264999;fill-opacity:1"
+       style="fill:{self.fill};fill-opacity:1"
        id="rect1"
        width="{self.width}"
        height="{self.height}"
        x="0"
-       y="0" />
-            """
+       y="0" />\n"""
             )
 
             for box in self.boxes:
                 file.write(
                     f"""    <rect
-           style="fill:{box.fill};stroke-width:0.264999;fill-opacity:1"
-           id="rect1"
-           width="{box.width}"
-           height="{box.height}"
-           x="{box.x}"
-           y="{box.y}" />
-                """
+       style="fill:{box.fill};fill-opacity:1"
+       id="rect1"
+       width="{box.width}"
+       height="{box.height}"
+       x="{box.x}"
+       y="{box.y}" />\n"""
                 )
 
             for text in self.texts:
                 file.write(
-                    f"""
-        <text
-           xml:space="preserve"
-           style="font-size:{text.size}px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:{text.fill};fill-opacity:1"
-           x="{text.x}"
-           y="{text.y}"
-           id="text2"><tspan
-             id="tspan2"
-             style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:{text.size}px;font-family:'Adwaita Mono', 'Courier New', 'Lucida Console';text-align:center;text-anchor:middle;fill:{text.fill};fill-opacity:1"
-             x="{text.x}"
-             y="{text.y}">{text.text}</tspan></text>
-                """
+                    f"""<text
+       xml:space="preserve"
+       style="font-size:{text.size}px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:{text.fill};fill-opacity:1"
+       x="{text.x}"
+       y="{text.y}"
+       id="text2"><tspan
+          id="tspan2"
+          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:{text.size}px;font-family:'Adwaita Mono', 'Courier New', 'Lucida Console';text-align:center;text-anchor:middle;fill:{text.fill};fill-opacity:1"
+          x="{text.x}"
+          y="{text.y}">{text.text}</tspan></text>\n"""
                 )
 
             file.write("  </g>\n")
@@ -315,6 +310,10 @@ def create_reticle(
             if not valid_tilemap[y][x]:
                 continue
 
+            if not code in projects:
+                print(f"[Warning]: {code} does not exist in projects.")
+                continue
+
             assert code in projects
             project = projects[code]
 
@@ -362,7 +361,10 @@ def create_reticle(
 
             svg_object.draw_rect(
                 (x * tile_pitch_x + RETICLE_X_OFFSET) / 1000,
-                (RETICLE_HEIGHT - project.height - y * tile_pitch_y + RETICLE_Y_OFFSET)
+                (
+                    RETICLE_HEIGHT
+                    - (project.height + y * tile_pitch_y + RETICLE_Y_OFFSET)
+                )
                 / 1000,
                 project.width / 1000,
                 project.height / 1000,
@@ -375,10 +377,12 @@ def create_reticle(
                 (x * tile_pitch_x + RETICLE_X_OFFSET + project.width / 2) / 1000,
                 (
                     RETICLE_HEIGHT
-                    - project.height
-                    + project.height / 2.2
-                    - y * tile_pitch_y
-                    + RETICLE_Y_OFFSET
+                    - (
+                        +project.height
+                        - project.height / 2.2
+                        + y * tile_pitch_y
+                        + RETICLE_Y_OFFSET
+                    )
                 )
                 / 1000
                 + text_size / 2,
