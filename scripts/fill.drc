@@ -34,8 +34,9 @@ threads($threads)
 # switch to the output cell for the fill
 output_cell(comp_fill_top.name)
 
-# DCF.7b
-margin = 6
+# It seems the distance of the dummy shapes in the scribe line
+# to the guard ring are also defined by GR.2
+margin = 10
 
 # ----------------
 
@@ -77,7 +78,7 @@ line_space = 2.4
 row_step = hstep(5.6 + line_space, 1.6)
 column_step = vstep(1.6, 5.6 + line_space)
 
-to_fill.fill(pattern, row_step, column_step, origin(0, 0))
+to_fill.fill(pattern, row_step, column_step, origin(-0.3, -0.3))
 
 # ----------------
 
