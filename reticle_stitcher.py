@@ -85,6 +85,7 @@ COLORS = [
 
 class Project:
     REQUIRED_ENTRIES = ["CODE", "PROJECT", "SLOT_SIZE", "TOP", "SHA256", "LAYOUT"]
+    OPTIONAL_ENTRIES = ["VISIBILITY"]
 
     SLOT_TO_TILES = {
         "1x1": (2, 2),
@@ -93,6 +94,7 @@ class Project:
         "0p5x0p5": (1, 1),
     }
 
+    # required
     code: str
     project: str
     slot: str
@@ -100,6 +102,10 @@ class Project:
     hash_md5: str
     layout: str
 
+    # optional
+    visibility: str
+
+    # size
     tiles_width: int
     tiles_height: int
 
@@ -109,7 +115,7 @@ class Project:
     def __init__(self, entries):
 
         # Make sure the required entries exist
-        assert all(x in self.REQUIRED_ENTRIES for x in entries)
+        assert all(x in entries for x in self.REQUIRED_ENTRIES)
 
         self.code = entries["CODE"]
         self.project = entries["PROJECT"]
@@ -117,6 +123,11 @@ class Project:
         self.top = entries["TOP"]
         self.hash_md5 = entries["SHA256"]
         self.layout = entries["LAYOUT"]
+
+        if "VISIBILITY" in entries:
+            self.visibility = entries["VISIBILITY"]
+        else:
+            self.visibility = "Private"
 
         # Make sure the slot size is valid
         if not self.slot in self.SLOT_TO_TILES:
@@ -132,7 +143,7 @@ class Project:
         )
 
     def __repr__(self):
-        return f"Project({self.code}, {self.project}, {self.slot}, {self.top}, {self.hash_md5}, {self.layout}, {self.tiles_width}, {self.tiles_height})"
+        return f"Project({self.code}, {self.project}, {self.slot}, {self.top}, {self.hash_md5}, {self.layout}, {self.visibility}, {self.tiles_width}, {self.tiles_height})"
 
 
 def read_manifest(base_path, manifest):
@@ -271,6 +282,7 @@ def create_reticle(
     base_path,
     projects,
     tilemap_data,
+    obfuscate,
     output_file="reticle.gds",
     output_svg="reticle.svg",
 ):
@@ -317,6 +329,7 @@ def create_reticle(
             assert code in projects
             project = projects[code]
 
+            # Place the project in the reticle layout
             print(f"{x}/{y}: Placing {project}")
 
             # Create a separate layout to prevent cell conflicts
@@ -359,23 +372,7 @@ def create_reticle(
             assert project.width == dbbox.width()
             assert project.height == dbbox.height()
 
-            # Create new cell in reticle layout
-            user_cell = layout.create_cell(f"{project.code}_{project.top}_{x}_{y}")
-
-            # Copy the contents into the cell
-            user_cell.copy_tree(user_layout_topcell)
-
-            # Insert the user cell
-            top_cell.insert(
-                pya.DCellInstArray(
-                    user_cell,
-                    pya.DPoint(
-                        x * tile_pitch_x + RETICLE_X_OFFSET,
-                        y * tile_pitch_y + RETICLE_Y_OFFSET,
-                    ),
-                )
-            )
-
+            # Draw the project in the SVG
             color = COLORS[random.randint(0, len(COLORS) - 1)]
 
             svg_object.draw_rect(
@@ -391,6 +388,9 @@ def create_reticle(
             )
 
             text_size = SLOT_TO_TEXT_SIZE[project.slot]
+            text_string = (
+                "?" if obfuscate and project.visibility != "Public" else project.code
+            )
 
             svg_object.draw_text(
                 (x * tile_pitch_x + RETICLE_X_OFFSET + project.width / 2) / 1000,
@@ -406,9 +406,73 @@ def create_reticle(
                 / 1000
                 + text_size / 2,
                 fill="#FFFFFF",
-                text=project.code,
+                text=text_string,
                 size=text_size,
             )
+
+            if not obfuscate or project.visibility == "Public":
+                print(f"[Info]: {code} is public, inserting layout.")
+
+                # Create new cell in reticle layout
+                user_cell = layout.create_cell(f"{project.code}_{project.top}_{x}_{y}")
+
+                # Copy the contents into the cell
+                user_cell.copy_tree(user_layout_topcell)
+
+                # Insert the user cell
+                top_cell.insert(
+                    pya.DCellInstArray(
+                        user_cell,
+                        pya.DPoint(
+                            x * tile_pitch_x + RETICLE_X_OFFSET,
+                            y * tile_pitch_y + RETICLE_Y_OFFSET,
+                        ),
+                    )
+                )
+            else:
+                print(f"[Info]: {code} is not public, obfuscating layout.")
+
+                # Create project boundary
+                top_cell.shapes(PR_bndry).insert(
+                    pya.DBox.new(
+                        x * tile_pitch_x + RETICLE_X_OFFSET,
+                        y * tile_pitch_y + RETICLE_Y_OFFSET,
+                        x * tile_pitch_x + RETICLE_X_OFFSET + project.width,
+                        y * tile_pitch_y + RETICLE_Y_OFFSET + project.height,
+                    )
+                )
+                GUARD_RING_MK = pya.LayerInfo(167, 5)
+                top_cell.shapes(GUARD_RING_MK).insert(
+                    pya.DBox.new(
+                        x * tile_pitch_x + RETICLE_X_OFFSET,
+                        y * tile_pitch_y + RETICLE_Y_OFFSET,
+                        x * tile_pitch_x + RETICLE_X_OFFSET + project.width,
+                        y * tile_pitch_y + RETICLE_Y_OFFSET + project.height,
+                    )
+                )
+
+                # Place "?" text on top of the empty slot
+                Metal5 = pya.LayerInfo(81, 0)
+                question_mark_cell = layout.create_cell(
+                    "TEXT", "Basic", {"text": "?", "layer": Metal5, "mag": 4000}
+                )
+
+                # Insert cell in the center of the slot
+                top_cell.insert(
+                    pya.DCellInstArray(
+                        question_mark_cell,
+                        pya.DPoint(
+                            x * tile_pitch_x
+                            + RETICLE_X_OFFSET
+                            + project.width / 2
+                            - question_mark_cell.dbbox().width() / 2,
+                            y * tile_pitch_y
+                            + RETICLE_Y_OFFSET
+                            + project.height / 2
+                            - question_mark_cell.dbbox().height() / 2,
+                        ),
+                    )
+                )
 
             def invalidate_tilemap(valid_tilemap, x, y, tiles_width, tiles_height):
                 for x_offset in range(project.tiles_width):
@@ -470,6 +534,18 @@ def main():
         default="reticle.svg",
     )
 
+    parser.add_argument(
+        "--obfuscate",
+        help="Obfuscate private projects.",
+        action="store_true",
+    )
+
+    parser.add_argument(
+        "--image",
+        help="Path to save the reticle image.",
+        type=str,
+    )
+
     # Parse the arguments
     args = vars(parser.parse_args())
 
@@ -482,9 +558,13 @@ def main():
     tilemap = read_tilemap(args["tile-map"])
 
     # Create the reticle layout
-    create_reticle(base_path, projects, tilemap, args["output"], args["svg"])
+    create_reticle(
+        base_path, projects, tilemap, args["obfuscate"], args["output"], args["svg"]
+    )
 
-    macro = os.path.join(os.path.dirname(__file__), "scripts", "fill.py")
+    # Run the filler script
+    macro = os.path.join(os.path.dirname(__file__), "scripts", "fill.py")  # "fill.drc")
+    print(f"Running the filler script: {macro}.")
     subprocess.run(
         [
             "klayout",
@@ -494,9 +574,26 @@ def main():
             "-rd",
             f"input={args['output']}",
             "-rd",
+            f"topcell=reticle",
+            "-rd",
             f"output={args['output-filled']}",
         ]
     )
+
+    if args["image"]:
+        print(f"Generating the image: {args['image']}.")
+        subprocess.run(
+            [
+                "python3",
+                "scripts/lay2img.py",
+                args["output-filled"],
+                args["image"],
+                "--width",
+                "4096",
+                "--oversampling",
+                "4",
+            ]
+        )
 
 
 if __name__ == "__main__":

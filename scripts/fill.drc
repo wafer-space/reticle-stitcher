@@ -2,6 +2,14 @@ require 'etc'
 
 source($layout, $layout.top_cell)
 
+#if $input
+#  if $topcell
+#    source($input, $topcell)
+#  else
+#    source($input)
+#  end
+#end
+
 verbose
 
 $threads = $threads || Etc.nprocessors
@@ -159,3 +167,7 @@ row_step = hstep(2.0 + line_space, 0.5)
 column_step = vstep(0.5, 2.0 + line_space)
 
 to_fill.fill(pattern, row_step, column_step, origin(2.0, 2.0))
+
+if $output
+  source.layout.write($output)
+end

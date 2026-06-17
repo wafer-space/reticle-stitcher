@@ -16,6 +16,9 @@ To run the stitcher, supply the manifest and tile map:
 python3 reticle_stitcher.py G801/manifest.csv G801/tilemap.csv reticle.oas reticle_filled.oas
 ```
 
+To generate the obfuscated reticle, pass `--obfuscate` as argument.
+To generate an image of the reticle, pass e.g. `--image reticle.png` as argument.
+
 ## File Structure
 
 The following file structure should be created for each shuttle:
@@ -45,6 +48,10 @@ The following entries are required in the CSV file:
 - TOP: top-cell name
 - HASH\_MD5: hash in given format of the **output** file
 - LAYOUT: relative path to the chip layout (e.g. `MOLE/chip_top.oas`)
+
+The following entries are optional in the CSV file:
+
+- VISIBILITY: the project visibility (e.g. `Public` or `Private`). If the reticle is obfuscated, this key decides whether the layout will be inserted or not.
 
 These are the required entries. However, additional entries can be added for documentation purposes.
 

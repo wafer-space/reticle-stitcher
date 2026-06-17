@@ -3,3 +3,5 @@
 *.oas
 *.csv
 .~lock.*
+*.png
+*.svg
