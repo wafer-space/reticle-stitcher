@@ -10,14 +10,15 @@ Enable the Nix shell:
 nix-shell
 ```
 
-To run the stitcher, supply the manifest and tile map:
+To run the stitcher, supply the manifest and tile map and specify the reticle/shuttle name:
 
 ```
-python3 reticle_stitcher.py G801/manifest.csv G801/tilemap.csv reticle.oas reticle_filled.oas
+python3 reticle_stitcher.py G801/manifest.csv G801/tilemap.csv G801
 ```
 
 To generate the obfuscated reticle, pass `--obfuscate` as argument.
-To generate an image of the reticle, pass e.g. `--image reticle.png` as argument.
+You can find all output files under `runs/<timestamp>/` relative to the current working directory.
+Use `--run-tag` to set a manual run tag, else the current tiem and date is used.
 
 ## File Structure
 
@@ -46,21 +47,23 @@ The following entries are required in the CSV file:
 - PROJECT: the project name
 - SLOT_SIZE: one of `1x1`, `1x0p5`, `0p5x1`, `0p5x0p5`
 - TOP: top-cell name
-- SHA256: hash in given format of the **output** file
-- LAYOUT: relative path to the chip layout (e.g. `MOLE/chip_top.oas`)
+- SHA256: sha256 hash of the layout file in the `LAYOUT` field
+- LAYOUT: relative path (from the manifest) to the chip layout (e.g. `MOLE/chip_top.oas`)
 
 The following entries are optional in the CSV file:
 
 - VISIBILITY: the project visibility (e.g. `Public` or `Private`). If the reticle is obfuscated, this key decides whether the layout will be inserted or not.
+- PROJECT_DETAILS: a long description of the project
+- REPOSITORY: a URL to the project repository
 
 These are the required entries. However, additional entries can be added for documentation purposes.
 
-| CODE | PROJECT                                  | SLOT_SIZE | TOP      | SHA256                         | LAYOUT                  |
-|------|------------------------------------------|---------|----------|----------------------------------|-------------------------|
-| MOLE | FABulous FPGA                            | 1x1     | chip_top | 65870f9152cfa47762051575c2ba6436 | MOLE/chip_top.gds       |
-| TQVC | TinyQV - Crowdsourced Risc-V SoC (1x0.5) | 1x0p5   | chip_top | 20a50d0bd648c4108a028aa50bac09e5 | TQVC/tinyqv_hheight.gds |
-| TQVB | TinyQV - Crowdsourced Risc-V SoC (0.5x1) | 0p5x1   | chip_top | 55b12cdcd16b311bcd955b6351456982 | TQVB/tinyqv_hwidth.gds  |
-| TQVA | TinyQV - Crowdsourced Risc-V SoC         | 0p5x0p5 | chip_top | 5daddac8767234c75d0aa03b2e11d89b | TQVA/tinyqv_quarter.gds |
+| CODE | PROJECT                                  | SLOT_SIZE | TOP      | SHA256                           | LAYOUT                  |
+|------|------------------------------------------|-----------|----------|----------------------------------|-------------------------|
+| MOLE | FABulous FPGA                            | 1x1       | chip_top | 65870f9152cfa47762051575c2ba6436 | MOLE/chip_top.gds       |
+| TQVC | TinyQV - Crowdsourced Risc-V SoC (1x0.5) | 1x0p5     | chip_top | 20a50d0bd648c4108a028aa50bac09e5 | TQVC/tinyqv_hheight.gds |
+| TQVB | TinyQV - Crowdsourced Risc-V SoC (0.5x1) | 0p5x1     | chip_top | 55b12cdcd16b311bcd955b6351456982 | TQVB/tinyqv_hwidth.gds  |
+| TQVA | TinyQV - Crowdsourced Risc-V SoC         | 0p5x0p5   | chip_top | 5daddac8767234c75d0aa03b2e11d89b | TQVA/tinyqv_quarter.gds |
 | ... | ... | ... | ... | ... | ... |
 
 ## Tile Map

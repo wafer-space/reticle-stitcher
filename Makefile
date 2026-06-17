@@ -10,5 +10,13 @@ help: ## Show this help message
 .PHONY: help
 
 stitch: ## Stitch a reticle
-	python3 reticle_stitcher.py examples/G801/manifest.csv examples/G801/tilemap.csv G801
+	python3 reticle_stitcher.py examples/G801/manifest.csv examples/G801/tilemap_15x9.csv G801
 .PHONY: stitch
+
+stitch-obfuscate: ## Stitch a reticle
+	python3 reticle_stitcher.py examples/G801/manifest.csv examples/G801/tilemap_15x9.csv G801 --obfuscate
+.PHONY: stitch-obfuscate
+
+stitch-empty: ## Stitch a reticle
+	python3 reticle_stitcher.py examples/G801/manifest.csv examples/G801/tilemap_empty.csv G801
+.PHONY: stitch-empty

@@ -50,6 +50,8 @@ jobs:
       - name: Run the Reticle Stitcher
         run: |
           nix develop --command make stitch
+          nix develop --command make stitch-obfuscate
+          nix develop --command make stitch-empty
       - name: Upload Run
         if: success() || failure()
         uses: actions/upload-artifact@v4

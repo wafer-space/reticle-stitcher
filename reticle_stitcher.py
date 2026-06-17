@@ -13,10 +13,14 @@ import subprocess
 from dataclasses import dataclass
 
 # Constants
+
+# Efabless reticle size
 # RETICLE_WIDTH = 32000
 # RETICLE_HEIGHT = 26000
-RETICLE_WIDTH = 30000
-RETICLE_HEIGHT = 24000
+
+# wsrun2 reticle size
+# RETICLE_WIDTH = 30000
+# RETICLE_HEIGHT = 24000
 
 SEAL_RING_SIZE = 26
 
@@ -319,8 +323,9 @@ def create_reticle(
 
     layout = pya.Layout()
     top_cell = layout.create_cell("reticle")
-
-    # TODO RETICLE_WIDTH = tile_map_width * ()
+    
+    RETICLE_WIDTH = TILE_WIDTH * tile_map_width + SAW_STREET * (tile_map_width + 1)
+    RETICLE_HEIGHT = TILE_HEIGHT * tile_map_height + SAW_STREET * (tile_map_height + 1)
 
     svg_object = SVG(RETICLE_WIDTH / 1000, RETICLE_HEIGHT / 1000, "#FFFFFF")
 
