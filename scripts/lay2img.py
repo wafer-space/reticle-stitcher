@@ -7,7 +7,7 @@ import klayout.lay as lay
 import klayout.db as db
 
 
-def main(input_layout, output_image, width, height, oversampling, pdk_root, pdk):
+def main(input_layout, output_image, width, height, oversampling, pdk_root, pdk, lyp, bw):
 
     # Background colors
     background_white = "#FFFFFF"
@@ -33,10 +33,14 @@ def main(input_layout, output_image, width, height, oversampling, pdk_root, pdk)
         height = int(width / aspect_ratio)
 
     # Load the layer properties
-    lv.load_layer_props(
-        #os.path.join(pdk_root, pdk, "libs.tech", "klayout", "tech", "gf180mcu.lyp")
-        "reticle.lyp"
-    )
+    if lyp:
+        lv.load_layer_props(
+            lyp
+        )
+    else:
+        lv.load_layer_props(
+            os.path.join(pdk_root, pdk, "libs.tech", "klayout", "tech", "gf180mcu.lyp")
+        )
 
     """# Disable some layers
     enabled_layers = [
@@ -70,22 +74,30 @@ def main(input_layout, output_image, width, height, oversampling, pdk_root, pdk)
     base_name = os.path.splitext(os.path.basename(output_image))[0]
     directory = os.path.dirname(output_image)
 
-    lv.set_config("background-color", background_white)
-    lv.save_image_with_options(
-        os.path.join(directory, base_name + "_white.png"),
-        width,
-        height,
-        oversampling=oversampling,
-    )
+    if bw:
+        lv.set_config("background-color", background_white)
+        lv.save_image_with_options(
+            os.path.join(directory, base_name + "_white.png"),
+            width,
+            height,
+            oversampling=oversampling,
+        )
 
-    lv.set_config("background-color", background_black)
-    lv.save_image_with_options(
-        os.path.join(directory, base_name + "_black.png"),
-        width,
-        height,
-        oversampling=oversampling,
-    )
-
+        lv.set_config("background-color", background_black)
+        lv.save_image_with_options(
+            os.path.join(directory, base_name + "_black.png"),
+            width,
+            height,
+            oversampling=oversampling,
+        )
+    else:
+        lv.set_config("background-color", background_white)
+        lv.save_image_with_options(
+            os.path.join(directory, base_name + ".png"),
+            width,
+            height,
+            oversampling=oversampling,
+        )
 
 if __name__ == "__main__":
 
@@ -97,10 +109,14 @@ if __name__ == "__main__":
     )
     parser.add_argument("layout", help="input layout")
     parser.add_argument("image", help="output image")
+    parser.add_argument("--lyp", type=str, default=None, help="layer properties file")
     parser.add_argument("--width", type=int, default=None, help="image width")
     parser.add_argument("--height", type=int, default=None, help="image height")
     parser.add_argument(
         "--oversampling", type=int, default=1, help="oversampling factor"
+    )
+    parser.add_argument(
+        "--bw", action="store_true", help="black and white background"
     )
 
     args = parser.parse_args()
@@ -113,4 +129,6 @@ if __name__ == "__main__":
         args.oversampling,
         pdk_root,
         pdk,
+        args.lyp,
+        args.bw,
     )

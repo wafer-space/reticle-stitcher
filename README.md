@@ -44,9 +44,9 @@ The following entries are required in the CSV file:
 
 - CODE: the project code (e.g. `MOLE`, `KIAN`, `CAFE`)
 - PROJECT: the project name
-- SLOT: one of `1x1`, `1x0p5`, `0p5x1`, `0p5x0p5`
+- SLOT_SIZE: one of `1x1`, `1x0p5`, `0p5x1`, `0p5x0p5`
 - TOP: top-cell name
-- HASH\_MD5: hash in given format of the **output** file
+- SHA256: hash in given format of the **output** file
 - LAYOUT: relative path to the chip layout (e.g. `MOLE/chip_top.oas`)
 
 The following entries are optional in the CSV file:
@@ -55,7 +55,7 @@ The following entries are optional in the CSV file:
 
 These are the required entries. However, additional entries can be added for documentation purposes.
 
-| CODE | PROJECT                                  | SLOT    | TOP      | HASH_MD5                         | LAYOUT                  |
+| CODE | PROJECT                                  | SLOT_SIZE | TOP      | SHA256                         | LAYOUT                  |
 |------|------------------------------------------|---------|----------|----------------------------------|-------------------------|
 | MOLE | FABulous FPGA                            | 1x1     | chip_top | 65870f9152cfa47762051575c2ba6436 | MOLE/chip_top.gds       |
 | TQVC | TinyQV - Crowdsourced Risc-V SoC (1x0.5) | 1x0p5   | chip_top | 20a50d0bd648c4108a028aa50bac09e5 | TQVC/tinyqv_hheight.gds |
