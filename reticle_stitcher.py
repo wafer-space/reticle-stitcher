@@ -588,7 +588,7 @@ def main():
 
     # Create the reticle layout and SVG
     create_reticle(
-        base_path, run_path, projects, tilemap, args["obfuscate"], os.path.join(run_path, f"{reticle_name}.oas"), os.path.join(run_path, f"{reticle_name}.svg")
+        base_path, run_path, projects, tilemap, args["obfuscate"], os.path.join(run_path, f"{reticle_name}_unfilled.oas"), os.path.join(run_path, f"{reticle_name}.svg")
     )
 
     print(f"Rendering the image...")
@@ -598,7 +598,7 @@ def main():
         [
             "python3",
             "scripts/lay2img.py",
-            os.path.join(run_path, f"{reticle_name}.oas"),
+            os.path.join(run_path, f"{reticle_name}_unfilled.oas"),
             os.path.join(run_path, f"{reticle_name}.png"),
             "--lyp",
             "reticle.lyp",
@@ -621,11 +621,11 @@ def main():
             "-r",
             macro,
             "-rd",
-            f"input={os.path.join(run_path, f'{reticle_name}.oas')}",
+            f"input={os.path.join(run_path, f'{reticle_name}_unfilled.oas')}",
             "-rd",
             f"topcell=reticle",
             "-rd",
-            f"output={os.path.join(run_path, f'{reticle_name}_fill.oas')}",
+            f"output={os.path.join(run_path, f'{reticle_name}.oas')}",
         ]
     )
 
