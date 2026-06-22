@@ -8,14 +8,19 @@ import sys
 import random
 import hashlib
 import argparse
+import datetime
 import subprocess
 from dataclasses import dataclass
 
 # Constants
+
+# Efabless reticle size
 # RETICLE_WIDTH = 32000
 # RETICLE_HEIGHT = 26000
-RETICLE_WIDTH = 30000
-RETICLE_HEIGHT = 24000
+
+# wsrun2 reticle size
+# RETICLE_WIDTH = 30000
+# RETICLE_HEIGHT = 24000
 
 SEAL_RING_SIZE = 26
 
@@ -85,7 +90,7 @@ COLORS = [
 
 class Project:
     REQUIRED_ENTRIES = ["CODE", "PROJECT", "SLOT_SIZE", "TOP", "SHA256", "LAYOUT"]
-    OPTIONAL_ENTRIES = ["VISIBILITY"]
+    OPTIONAL_ENTRIES = ["VISIBILITY", "PROJECT_DETAILS", "REPOSITORY"]
 
     SLOT_TO_TILES = {
         "1x1": (2, 2),
@@ -99,11 +104,13 @@ class Project:
     project: str
     slot: str
     top: str
-    hash_md5: str
+    hash_sha256: str
     layout: str
 
     # optional
     visibility: str
+    project_details: str
+    repository: str
 
     # size
     tiles_width: int
@@ -115,19 +122,18 @@ class Project:
     def __init__(self, entries):
 
         # Make sure the required entries exist
-        assert all(x in entries for x in self.REQUIRED_ENTRIES)
+        assert all(x in entries for x in self.REQUIRED_ENTRIES), f"{entries} does not contain one of {self.REQUIRED_ENTRIES}"
 
         self.code = entries["CODE"]
         self.project = entries["PROJECT"]
         self.slot = entries["SLOT_SIZE"]
         self.top = entries["TOP"]
-        self.hash_md5 = entries["SHA256"]
+        self.hash_sha256 = entries["SHA256"]
         self.layout = entries["LAYOUT"]
 
-        if "VISIBILITY" in entries:
-            self.visibility = entries["VISIBILITY"]
-        else:
-            self.visibility = "Private"
+        self.visibility = entries["VISIBILITY"] if "VISIBILITY" in entries else "Private"
+        self.project_details = entries["PROJECT_DETAILS"] if "PROJECT_DETAILS" in entries else ""
+        self.repository = entries["REPOSITORY"] if "REPOSITORY" in entries else ""
 
         # Make sure the slot size is valid
         if not self.slot in self.SLOT_TO_TILES:
@@ -143,7 +149,7 @@ class Project:
         )
 
     def __repr__(self):
-        return f"Project({self.code}, {self.project}, {self.slot}, {self.top}, {self.hash_md5}, {self.layout}, {self.visibility}, {self.tiles_width}, {self.tiles_height})"
+        return f"Project({self.code}, {self.project}, {self.slot}, {self.top}, {self.hash_sha256}, {self.layout}, {self.visibility}, {self.tiles_width}, {self.tiles_height})"
 
 
 def read_manifest(base_path, manifest):
@@ -173,9 +179,7 @@ def read_manifest(base_path, manifest):
                         break
                     sha256.update(data)
 
-            print("Actual SHA256: {0}".format(sha256.hexdigest()))
-            print("Expected SHA256: {0}".format(entry["SHA256"]))
-            assert entry["SHA256"] == sha256.hexdigest()
+            assert entry["SHA256"] == sha256.hexdigest(), f"{entry['CODE']}: Actual SHA256: {sha256.hexdigest()}, Expected SHA256: {entry['SHA256']}"
 
     return projects
 
@@ -277,9 +281,26 @@ class SVG:
             file.write("  </g>\n")
             file.write("</svg>\n")
 
+def write_markdown_summary(projects, obfuscate, output_file):
+    summary = "# Summary\n\n"
+    
+    summary += """
+| Code | Project | Slot Size | Project Details | Repository |
+|---|---|---|---|---|
+"""
+    
+    for project in projects.values():
+        if not obfuscate or project.visibility == "Public":
+            summary += f"| {project.code} | {project.project} | {project.slot} | {project.project_details} | {project.repository} |\n"
+
+    summary += "\n"
+
+    with open(output_file, "w") as of:
+        of.write(summary)
 
 def create_reticle(
     base_path,
+    run_path,
     projects,
     tilemap_data,
     obfuscate,
@@ -302,6 +323,9 @@ def create_reticle(
 
     layout = pya.Layout()
     top_cell = layout.create_cell("reticle")
+    
+    RETICLE_WIDTH = TILE_WIDTH * tile_map_width + SAW_STREET * (tile_map_width + 1)
+    RETICLE_HEIGHT = TILE_HEIGHT * tile_map_height + SAW_STREET * (tile_map_height + 1)
 
     svg_object = SVG(RETICLE_WIDTH / 1000, RETICLE_HEIGHT / 1000, "#FFFFFF")
 
@@ -312,7 +336,7 @@ def create_reticle(
     # Iterate over all tiles
     for y, row in enumerate(reversed(tilemap_data)):
         for x, code in enumerate(row):
-            print(f"Tile: {x}/{y}: '{code}'")
+            print(f"Tile X{x}Y{y}: '{code}'")
 
             # Skip empty tiles
             if not code:
@@ -514,24 +538,9 @@ def main():
         type=lambda x: is_valid_file(parser, x),
     )
     parser.add_argument(
-        "output",
-        help="Output name of the reticle layout.",
-        nargs="?",
-        default="reticle.oas",
-    )
-
-    parser.add_argument(
-        "output-filled",
-        help="Output name of the filled reticle layout.",
-        nargs="?",
-        default="reticle_filled.oas",
-    )
-
-    parser.add_argument(
-        "svg",
-        help="Output name of the svg.",
-        nargs="?",
-        default="reticle.svg",
+        "name",
+        help="Name of the reticle or shuttle.",
+        default="reticle",
     )
 
     parser.add_argument(
@@ -541,13 +550,16 @@ def main():
     )
 
     parser.add_argument(
-        "--image",
-        help="Path to save the reticle image.",
+        '--run-tag',
+        default=None,
         type=str,
+        help='An optional name to use for this particular run of an LibreLane-based flow. Used to create the run directory.',
     )
 
     # Parse the arguments
     args = vars(parser.parse_args())
+
+    reticle_name = args["name"]
 
     # Get the base path
     base_path = os.path.realpath(os.path.dirname(args["manifest"]))
@@ -557,10 +569,47 @@ def main():
     projects = read_manifest(base_path, args["manifest"])
     tilemap = read_tilemap(args["tile-map"])
 
-    # Create the reticle layout
-    create_reticle(
-        base_path, projects, tilemap, args["obfuscate"], args["output"], args["svg"]
+    # Create the run/<timestamp> directory
+    tag = args["run_tag"] or datetime.datetime.now().astimezone().strftime(
+        "RUN_%Y-%m-%d_%H-%M-%S"
     )
+    
+    run_path = os.path.join("runs/", tag)
+
+    if not os.path.exists(run_path):
+        os.makedirs(run_path)
+
+    print(f"Writing Markdown summary...")
+
+    # Write the Markdown summary
+    write_markdown_summary(projects, args["obfuscate"], os.path.join(run_path, f"{reticle_name}.md"))
+
+    print(f"Creating the reticle layout and SVG...")
+
+    # Create the reticle layout and SVG
+    create_reticle(
+        base_path, run_path, projects, tilemap, args["obfuscate"], os.path.join(run_path, f"{reticle_name}.oas"), os.path.join(run_path, f"{reticle_name}.svg")
+    )
+
+    print(f"Rendering the image...")
+    
+    # Render the image
+    subprocess.run(
+        [
+            "python3",
+            "scripts/lay2img.py",
+            os.path.join(run_path, f"{reticle_name}.oas"),
+            os.path.join(run_path, f"{reticle_name}.png"),
+            "--lyp",
+            "reticle.lyp",
+            "--width",
+            "4096",
+            "--oversampling",
+            "4",
+        ]
+    )
+
+    print(f"Filling the reticle...")
 
     # Run the filler script
     macro = os.path.join(os.path.dirname(__file__), "scripts", "fill.py")  # "fill.drc")
@@ -572,28 +621,13 @@ def main():
             "-r",
             macro,
             "-rd",
-            f"input={args['output']}",
+            f"input={os.path.join(run_path, f'{reticle_name}.oas')}",
             "-rd",
             f"topcell=reticle",
             "-rd",
-            f"output={args['output-filled']}",
+            f"output={os.path.join(run_path, f'{reticle_name}_fill.oas')}",
         ]
     )
-
-    if args["image"]:
-        print(f"Generating the image: {args['image']}.")
-        subprocess.run(
-            [
-                "python3",
-                "scripts/lay2img.py",
-                args["output-filled"],
-                args["image"],
-                "--width",
-                "4096",
-                "--oversampling",
-                "4",
-            ]
-        )
 
 
 if __name__ == "__main__":
