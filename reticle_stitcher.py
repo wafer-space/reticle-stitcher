@@ -43,8 +43,8 @@ TILE_HEIGHT = (USER_DIE_HEIGHT - ((TILE_GRID - 1) * SAW_STREET)) / TILE_GRID
 tile_pitch_x = TILE_WIDTH + SAW_STREET
 tile_pitch_y = TILE_HEIGHT + SAW_STREET
 
-RETICLE_X_OFFSET = 60
-RETICLE_Y_OFFSET = 60
+RETICLE_X_OFFSET = SAW_STREET
+RETICLE_Y_OFFSET = SAW_STREET
 
 BUF_SIZE = 65536
 
@@ -184,6 +184,25 @@ def read_manifest(base_path, manifest):
     return projects
 
 
+def filter_manifest(manifest_in, manifest_out, obfuscate):
+
+    # Read the manifest
+    with open(manifest_in) as csvfile:
+        dict_reader = csv.DictReader(csvfile, delimiter=",", quotechar='"')
+        headers = dict_reader.fieldnames
+        data = list(dict_reader)
+
+    # Filter the data
+    if obfuscate:
+        data = [entry for entry in data if entry["VISIBILITY"] == "Public"]
+
+    # Write the (filtered) manifest
+    with open(manifest_out, "w") as csvfile:
+        dict_writer = csv.DictWriter(csvfile, fieldnames=headers, delimiter=",", quotechar='"')
+        dict_writer.writeheader()
+        dict_writer.writerows(data)
+
+
 def read_tilemap(tile_map):
     with open(tile_map) as csvfile:
         reader = csv.reader(csvfile, delimiter=",", quotechar='"')
@@ -281,7 +300,7 @@ class SVG:
             file.write("  </g>\n")
             file.write("</svg>\n")
 
-def write_markdown_summary(projects, obfuscate, output_file):
+def write_markdown_summary(projects, tilemap_data, obfuscate, output_file):
     summary = "# Summary\n\n"
     
     summary += """
@@ -290,8 +309,14 @@ def write_markdown_summary(projects, obfuscate, output_file):
 """
     
     for project in projects.values():
-        if not obfuscate or project.visibility == "Public":
-            summary += f"| {project.code} | {project.project} | {project.slot} | {project.project_details} | {project.repository} |\n"
+        # Check if project is actually part of the tile map
+        if not any(project.code in row for row in tilemap_data):
+            continue
+    
+        if obfuscate and project.visibility != "Public":
+            summary += f"| {project.code} | Private | {project.slot} | Private | Private |\n"
+        else:
+            summary += f"| {project.code} | {project.project} | {project.slot} | {project.project_details.replace('\n', '<br>')} | {project.repository} |\n"
 
     summary += "\n"
 
@@ -412,9 +437,10 @@ def create_reticle(
             )
 
             text_size = SLOT_TO_TEXT_SIZE[project.slot]
-            text_string = (
-                "?" if obfuscate and project.visibility != "Public" else project.code
-            )
+            #text_string = (
+            #    "?" if obfuscate and project.visibility != "Public" else project.code
+            #)
+            text_string = project.code
 
             svg_object.draw_text(
                 (x * tile_pitch_x + RETICLE_X_OFFSET + project.width / 2) / 1000,
@@ -478,7 +504,7 @@ def create_reticle(
                 # Place "?" text on top of the empty slot
                 Metal5 = pya.LayerInfo(81, 0)
                 question_mark_cell = layout.create_cell(
-                    "TEXT", "Basic", {"text": "?", "layer": Metal5, "mag": 4000}
+                    "TEXT", "Basic", {"text": "?", "layer": Metal5, "mag": 4000 if project.slot == "1x1" else 2000 }
                 )
 
                 # Insert cell in the center of the slot
@@ -565,7 +591,7 @@ def main():
     base_path = os.path.realpath(os.path.dirname(args["manifest"]))
     print(f"Manifest base path: {base_path}")
 
-    # Read the manifest
+    # Read the manifest and tilemap
     projects = read_manifest(base_path, args["manifest"])
     tilemap = read_tilemap(args["tile-map"])
 
@@ -575,14 +601,17 @@ def main():
     )
     
     run_path = os.path.join("runs/", tag)
-
+    
     if not os.path.exists(run_path):
         os.makedirs(run_path)
+    
+    # Write manifest to the run directory (filtered by Private/Public)
+    filter_manifest(args["manifest"], os.path.join(run_path, os.path.basename(args["manifest"])), args["obfuscate"])
 
     print(f"Writing Markdown summary...")
 
     # Write the Markdown summary
-    write_markdown_summary(projects, args["obfuscate"], os.path.join(run_path, f"{reticle_name}.md"))
+    write_markdown_summary(projects, tilemap, args["obfuscate"], os.path.join(run_path, f"{reticle_name}.md"))
 
     print(f"Creating the reticle layout and SVG...")
 
